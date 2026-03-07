@@ -1,4 +1,5 @@
 # TUI-do: The Developer's Terminal Kanban
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **TUI-do** is a high-performance, keyboard-driven Kanban board for Notion, built specifically for developers who live in the terminal. It bridges the gap between your project management and your source code. It is currently being developed as an Integrated M.Tech CSE project at the University of Hyderabad.
 
