@@ -25,7 +25,7 @@ TUI-do is designed with a decoupled, enterprise-grade architecture to ensure lon
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/tui-do.git
+   git clone https://github.com/kpradyun/TUI-do.git
    cd tui-do
    ```
 
