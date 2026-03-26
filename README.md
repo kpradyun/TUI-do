@@ -7,11 +7,14 @@
 
 * **Offline-First Architecture**: Powered by a local SQLite cache. View and edit your board instantly, even without an internet connection.
 * **Vim-Style Navigation**: Navigate your board with `h`, `j`, `k`, `l` or arrow keys. Keep your hands on the home row.
-* **Vim-Style Command Palette**: Use `:` to trigger powerful commands like `:new`, `:refresh`, and `:q`.
-* **Smart Filtering**: Press `/` to instantly filter tasks by title or `#tags`.
+* **Vim-Style Command Palette**: Use `:` to trigger powerful commands like `:new`, `:refresh`, `:export`, and `:switch`.
+* **Smart Multi-criteria Filtering**: Press `/` to instantly filter tasks by title, `#tags`, `due:today`, `assignee:name`, or `priority:high`. Combine them like `due:today bug`!
+* **Kanban Metadata**: Full read/write support for Due Dates, Priorities, Assignees, Comments, and Checklists.
+* **60s Auto-Sync Heartbeat**: The app heartbeats every minute in the background, keeping your local board live without manual refreshes.
 * **Optimistic UI Sync**: Changes are reflected in the UI instantly and synced to Notion in the background using a multi-threaded sync engine.
+* **Multi-Board Management**: Seamlessly swap between different Notion databases and projects with full offline isolation.
 * **Real-time Network Awareness**: Automatically detects internet status and triggers synchronization when reconnection is established.
-* **Automatic Configuration**: No need to mess with `.env` files. TUI-do handles your credentials securely through a native setup screen.
+
 
 ## Architecture
 
@@ -24,44 +27,70 @@ TUI-do is designed with a decoupled, enterprise-grade architecture to ensure lon
 
 ## Installation
 
+For a full step-by-step setup guide (creating the Notion integration, connecting it to your database, schema requirements), see **[SETUP.md](SETUP.md)**.
+
+**Quick start:**
+
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/kpradyun/TUI-do.git
-   cd tui-do
+   cd TUI-do
    ```
 
 2. **Install dependencies:**
    ```bash
-   pip install textual notion-client
+   pip install -r requirements.txt
    ```
 
 3. **Run the application:**
    ```bash
    python main.py
    ```
+   On first run, TUI-do will walk you through connecting your Notion workspace.
 
 ## Keyboard Shortcuts
 
 | Key | Action |
 | :--- | :--- |
 | `n` | Create a new task with full details |
-| `Enter` | View and edit task description |
+| `Enter` | View Sub-tasks, Comments, and Edit Task |
 | `[` / `]` | Move task between columns |
-| `x` | Archive/Delete task |
-| `/` | Search/Filter tasks |
-| `:` | Open Command Palette |
+| `u` | Undo last move |
+| `x` | Archive/Delete task (confirm dialog) |
+| `r` | Refresh / Full Sync (Cloud ⇄ Local) |
+| `/` | Search/Filter tasks (use Space for multiple terms) |
+| `?` | Open Help Modal |
+| `colon` | Open Command Palette |
 | `d` | Toggle Dark/Light Mode |
 | `q` | Quit |
 
-## Roadmap
+## Command Palette
 
-- [ ] **Git Context Awareness**: Automatically highlight tasks based on your current local git branch.
-- [ ] **Assignee Avatars**: Display task owners directly on the cards.
-- [ ] **Pomodoro Time Tracking**: Integrated time tracking for active tasks.
-- [ ] **Local SQLite Caching**: Full offline-to-online conflict resolution.
+| Command | Action |
+| :--- | :--- |
+| `:new <title> [#tag]` | Create a task from the command line |
+| `:refresh` / `:r` | Sync with Notion immediately |
+| `:export <file.md>` | Export current board to a Markdown checklist |
+| `:switch <url_or_alias>` | Switch to a different board (caching it locally) |
+| `:boards` | List all saved boards and their aliases |
+| `:config` | Change your Notion token or database URL |
+| `:rm` / `:del` | Archive the focused task |
+| `:help` | Show the help modal |
+| `:q` / `:quit` | Quit the app |
+
+## 🔍 Advanced Search Syntax
+
+TUI-do's search engine supports complex, multi-fragment queries. Use prefixes to target specific properties:
+
+- `due:today` or `due:overdue`
+- `assignee:pradyun`
+- `priority:high`
+- `#tagname` (or just `tagname`)
+
+**Example**: Type `/due:today feature` to find all feature requests due today across all columns.
 
 ## Contributing
 
 This project is being developed by A. Srinidh and K. Pradyun for FOSS Hack. Issues, and feature requests are welcome!
 
-*Developing at the University of Hyderabad, Expected Graduation: June 2028.*
+*Developing at the University of Hyderabad, Integrated M.Tech CSE, Expected Graduation: June 2028.*

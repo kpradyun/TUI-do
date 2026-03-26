@@ -1,0 +1,44 @@
+Screen { layout: vertical; background: $background; }
+#board-container { layout: horizontal; height: 1fr; align: center middle; padding: 1 2; }
+KanbanColumn { width: 1fr; height: 100%; border: solid $surface-darken-1; margin: 0 1; background: $panel; }
+KanbanColumn:focus-within { border: thick $accent; }
+TaskCard { width: 100%; height: auto; padding: 1 2; margin: 1; background: $surface; border-left: thick $surface-lighten-2; color: $text; }
+TaskCard:hover { background: $surface-lighten-1; border-left: thick $success; }
+TaskCard:focus { border-left: thick $accent; background: $surface-lighten-2; }
+TaskCard.pending { border-left: thick $warning; }
+.task-title { text-style: bold; margin-bottom: 0; }
+.task-meta { margin-top: 0; color: $text-muted; }
+.task-pending-label { color: $warning; text-style: italic; }
+.hidden { display: none; }
+.tag-container { height: auto; }
+.tag { background: $primary; color: $background; text-style: bold; margin-right: 1; padding: 0 1; }
+.dialog-box { width: 60; height: auto; padding: 2 4; border: tall $accent; background: $surface; }
+.large-dialog { width: 80; height: auto; }
+.dialog-title { content-align: center middle; text-style: bold; margin-bottom: 2; color: $primary; }
+.dialog-label { margin-top: 1; margin-bottom: 1; color: $text-muted; }
+.dialog-error { color: $error; margin-top: 1; }
+Input { margin-bottom: 0; }
+TextArea { height: 8; margin-bottom: 1; border: round $primary; background: $panel; }
+TextArea:focus { border: round $accent; }
+Button { width: 100%; margin-top: 1; }
+CommandBar { dock: bottom; display: none; background: $surface-darken-1; border-top: solid $accent; text-style: bold; padding: 0 1; }
+CommandBar.-visible { display: block; }
+SearchBar { dock: top; display: none; background: $surface-darken-1; border-bottom: solid $warning; text-style: bold; padding: 0 1; }
+SearchBar.-visible { display: block; }
+
+/* Priority Tags */
+.priority-tag { text-style: bold; margin-right: 1; }
+.priority-high { color: $error; }
+.priority-medium { color: $warning; }
+.priority-low { color: $success; }
+
+/* Due Date Tags */
+.due-tag { color: $text-muted; margin-right: 1; text-style: italic; }
+.overdue { color: $error; text-style: bold italic; }
+
+/* Assignee Tag */
+.assignee-tag { color: $secondary; text-style: bold; margin-right: 1; }
+
+/* Task Detail Property Chips */
+#dt-chips { margin-top: 1; margin-bottom: 1; padding: 0 0; }
+.dt-context-item { margin-top: 0; color: $text-muted; }
