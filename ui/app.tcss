@@ -12,8 +12,8 @@ TaskCard.pending { border-left: thick $warning; }
 .hidden { display: none; }
 .tag-container { height: auto; }
 .tag { background: $primary; color: $background; text-style: bold; margin-right: 1; padding: 0 1; }
-.dialog-box { width: 60; height: auto; padding: 2 4; border: tall $accent; background: $surface; }
-.large-dialog { width: 80; height: auto; }
+.dialog-box { width: 60; height: auto; max-height: 38; padding: 2 4; border: tall $accent; background: $surface; }
+.large-dialog { width: 80; max-height: 44; }
 .dialog-title { content-align: center middle; text-style: bold; margin-bottom: 2; color: $primary; }
 .dialog-label { margin-top: 1; margin-bottom: 1; color: $text-muted; }
 .dialog-error { color: $error; margin-top: 1; }
@@ -42,3 +42,28 @@ SearchBar.-visible { display: block; }
 /* Task Detail Property Chips */
 #dt-chips { margin-top: 1; margin-bottom: 1; padding: 0 0; }
 .dt-context-item { margin-top: 0; color: $text-muted; }
+
+/* Overdue card — red left border */
+TaskCard.overdue-card { border-left: thick $error; }
+
+/* Done column — dim + strikethrough title */
+.done-title { text-style: dim strike; }
+
+/* Empty column placeholder */
+.empty-col-msg { color: $text-muted; text-style: italic; width: 100%; content-align: center middle; padding: 2 0; }
+
+/* WIP limit exceeded — column border flashes warning */
+KanbanColumn.wip-exceeded { border: thick $error; }
+KanbanColumn.wip-exceeded:focus-within { border: thick $error; }
+
+/* Bulk-selected card */
+TaskCard.selected { border-left: thick $success; background: $surface-lighten-3; }
+TaskCard.selected:focus { border-left: thick $accent; background: $surface-lighten-3; }
+
+/* Recurring interval badge */
+.recurring-badge { color: $accent; text-style: italic; margin-right: 1; }
+
+/* Command Palette */
+#palette-list { height: 22; border: solid $surface-darken-1; }
+.palette-cmd-btn { width: 100%; margin: 0; border: none; background: $panel; color: $accent; text-align: left; }
+.palette-cmd-btn:hover, .palette-cmd-btn:focus { background: $primary; color: $background; }

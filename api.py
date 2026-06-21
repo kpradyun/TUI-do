@@ -1,19 +1,52 @@
 import json
+import logging
+import time
 import httpx
 from notion_client import Client
 import config
 import db
 
+logger = logging.getLogger(__name__)
+
+
+def _post_with_retry(url: str, *, headers: dict, json_body: dict, timeout: float = 30.0) -> dict:
+    """POST to the Notion REST API with automatic back-off on HTTP 429."""
+    last_res = None
+    for attempt in range(4):
+        last_res = httpx.post(url, headers=headers, json=json_body, timeout=timeout)
+        if last_res.status_code == 429:
+            wait = int(last_res.headers.get("Retry-After", str(min(2 ** attempt, 60))))
+            logger.warning(f"Notion rate-limited (429). Retrying in {wait}s (attempt {attempt + 1}/4)")
+            time.sleep(wait)
+            continue
+        last_res.raise_for_status()
+        return last_res.json()
+    last_res.raise_for_status()  # propagate after all retries
+    return {}
+
+
+def _sdk_call_with_retry(fn, *args, **kwargs):
+    """Call a Notion SDK method with back-off on rate-limit errors."""
+    for attempt in range(4):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            err = str(e)
+            if "rate_limited" in err.lower() or "429" in err:
+                wait = min(2 ** attempt, 60)
+                logger.warning(f"Notion SDK rate-limited. Retrying in {wait}s (attempt {attempt + 1}/4)")
+                time.sleep(wait)
+            else:
+                raise
+    return fn(*args, **kwargs)  # final attempt — let the exception propagate
+
 def get_client():
     """Helper to quickly grab the Notion client and database ID."""
-    cfg = config.load_config()
-    if not cfg:
+    token = config.get_token()
+    if not token:
         return None, None
-        
-    current_alias = cfg.get("CURRENT_BOARD", "default")
-    db_id = cfg.get("BOARDS", {}).get(current_alias) or cfg.get("NOTION_DATABASE_ID")
-    
-    return Client(auth=cfg["NOTION_TOKEN"]), db_id
+    db_id = config.get_current_db_id()
+    return Client(auth=token), db_id
 
 def get_comments(page_id: str) -> list:
     """Fetches comments for a specific page/task."""
@@ -68,19 +101,21 @@ def get_workspace_users() -> dict:
     except Exception:
         return {}
 
-_schema_cache: dict = {}
+_schema_cache: dict = {}       # {type: [prop_name, ...]}  — used by push for property lookup
+_raw_schema_cache: dict = {}   # {prop_name: full_prop_data} — used to read status options
 
 def get_db_schema() -> dict:
-    """Retrieves the database schema to find the correct property names."""
-    global _schema_cache
+    """Retrieves the database schema. Returns {type: [prop_name, ...]} for push lookups."""
+    global _schema_cache, _raw_schema_cache
     if _schema_cache:
         return _schema_cache
     notion, db_id = get_client()
-    if not notion: return {}
+    if not notion:
+        return {}
     try:
         res = notion.databases.retrieve(database_id=db_id)
         props = res.get("properties", {})
-        # Map: {"people": ["Assign", "Assignee"], "select": ["Priority", "Level"], "date": ["Due Date"]}
+        _raw_schema_cache = props  # keep the full response for get_status_options()
         _schema_cache = {}
         for name, data in props.items():
             ptype = data.get("type")
@@ -91,11 +126,23 @@ def get_db_schema() -> dict:
     except Exception:
         return {}
 
+
+def get_status_options() -> list[str]:
+    """Return all Status property option names from the Notion database schema."""
+    get_db_schema()  # populates _raw_schema_cache if not already done
+    for prop_name, data in _raw_schema_cache.items():
+        if data.get("type") == "status":
+            options = data.get("status", {}).get("options", [])
+            return [o["name"] for o in options if o.get("name")]
+    return []
+
+
 def clear_cache():
     """Wipes the schema and user cache. Call this when switching boards."""
-    global _schema_cache, _user_cache
+    global _schema_cache, _user_cache, _raw_schema_cache
     _schema_cache = {}
     _user_cache = {}
+    _raw_schema_cache = {}
 
 def pull_from_cloud() -> bool:
     """Fetches all tasks from Notion and saves them to the local SQLite DB."""
@@ -119,9 +166,7 @@ def pull_from_cloud() -> bool:
             if next_cursor:
                 body["start_cursor"] = next_cursor
                 
-            res = httpx.post(url, headers=headers, json=body)
-            res.raise_for_status()
-            response = res.json()
+            response = _post_with_retry(url, headers=headers, json_body=body)
             
             for page in response.get("results", []):
                 props = page.get("properties", {})
@@ -141,23 +186,15 @@ def pull_from_cloud() -> bool:
                 
                 # Tags
                 tags_list = [tag.get("name") for tag in props.get("Tags", {}).get("multi_select", []) if tag.get("name")]
-                
-                # Due Date
-                due_date = None
-                date_prop = props.get("Due Date", {}).get("date")
-                if date_prop:
-                    due_date = date_prop.get("start")
-                    
+
                 # Flexible Property Lookups
-                def find_prop(names: list, type: str):
-                    # 1. Try specified common names first
+                def find_prop(names: list, prop_type: str):
                     for name in names:
                         prop = props.get(name)
-                        if prop and prop.get("type") == type:
+                        if prop and prop.get("type") == prop_type:
                             return prop
-                    # 2. Fallback: just find the FIRST property of this type in the entire page!
                     for name, prop in props.items():
-                        if prop and prop.get("type") == type:
+                        if prop and prop.get("type") == prop_type:
                             return prop
                     return None
 
@@ -202,6 +239,7 @@ def pull_from_cloud() -> bool:
         db.save_tasks_from_cloud(flat_tasks)
         return True
     except Exception as e:
+        logger.error(f"pull_from_cloud failed: {e}")
         return False
 
 def push_offline_queue() -> bool:
@@ -253,13 +291,17 @@ def push_offline_queue() -> bool:
                     if uid:
                         props[assign_name] = {"people": [{"object": "user", "id": uid}]}
                 
-                response = notion.pages.create(parent={"database_id": db_id}, properties=props)
+                response = _sdk_call_with_retry(
+                    notion.pages.create, parent={"database_id": db_id}, properties=props
+                )
                 db.mark_synced(old_id=task_id, new_real_id=response["id"])
 
             elif status == "pending_update":
+                tags = json.loads(task["tags"]) if task["tags"] else []
                 props = {
                     "Name": {"title": [{"text": {"content": task["title"]}}]},
-                    "Status": {"status": {"name": task["status"]}}
+                    "Status": {"status": {"name": task["status"]}},
+                    "Tags": {"multi_select": [{"name": t} for t in tags]},
                 }
                 schema = get_db_schema()
                 
@@ -281,18 +323,13 @@ def push_offline_queue() -> bool:
                     if uid:
                         props[assign_name] = {"people": [{"object": "user", "id": uid}]}
                 
-                notion.pages.update(page_id=task_id, properties=props)
+                _sdk_call_with_retry(notion.pages.update, page_id=task_id, properties=props)
                 db.mark_synced(task_id)
 
             # --- 3. HANDLE PENDING DELETES ---
             elif status == "pending_delete":
-                notion.pages.update(page_id=task_id, archived=True)
-                
-                # Once it's deleted in the cloud, permanently erase it from our local SQLite cache
-                conn = db.get_connection()
-                conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
-                conn.commit()
-                conn.close()
+                _sdk_call_with_retry(notion.pages.update, page_id=task_id, archived=True)
+                db.hard_delete(task_id)
                 
         except Exception as e:
             # If a single task fails to sync, we catch the error, leave it in the queue, 

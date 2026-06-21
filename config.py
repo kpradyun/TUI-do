@@ -69,8 +69,39 @@ def get_database_url() -> Optional[str]:
 
 
 def get_all_boards() -> dict[str, str]:
-    """Return dict of alias → database_url for saved boards."""
+    """Return dict of alias → database_id for saved boards."""
     return load_config().get("boards", {})
+
+
+def get_current_board() -> str:
+    """Return the currently active board alias."""
+    return load_config().get("current_board", "default")
+
+
+def set_current_board(alias: str) -> None:
+    """Persist the currently active board alias."""
+    cfg = load_config()
+    cfg["current_board"] = alias
+    save_config(cfg)
+
+
+def switch_board(target: str) -> bool:
+    """Switch to a saved board by alias. Returns True if the alias exists."""
+    cfg = load_config()
+    boards = cfg.get("boards", {})
+    if target not in boards:
+        return False
+    cfg["current_board"] = target
+    save_config(cfg)
+    return True
+
+
+def get_current_db_id() -> Optional[str]:
+    """Return the Notion database ID for the currently active board."""
+    cfg = load_config()
+    current = cfg.get("current_board", "default")
+    boards = cfg.get("boards", {})
+    return boards.get(current) or cfg.get("notion_database_id")
 
 
 def set_token(token: str) -> None:
@@ -97,11 +128,11 @@ def set_database_url(url: str) -> None:
     save_config(cfg)
 
 
-def save_board(alias: str, url: str) -> None:
-    """Save a board alias → url mapping."""
+def save_board(alias: str, db_id: str) -> None:
+    """Save a board alias → database_id mapping."""
     cfg = load_config()
     boards = cfg.get("boards", {})
-    boards[alias] = url
+    boards[alias] = db_id
     cfg["boards"] = boards
     save_config(cfg)
 
@@ -109,6 +140,77 @@ def save_board(alias: str, url: str) -> None:
 def is_configured() -> bool:
     """Return True if both token and database URL are set."""
     return bool(get_token() and get_database_url())
+
+
+def is_local_only() -> bool:
+    """Return True if running without Notion (local SQLite only)."""
+    return bool(load_config().get("local_only"))
+
+
+def set_local_only() -> None:
+    """Configure the app to run without Notion (local-only mode)."""
+    cfg = load_config()
+    cfg["local_only"] = True
+    cfg["backend"] = "local"
+    cfg.setdefault("current_board", "local")
+    cfg.setdefault("boards", {})["local"] = "local"
+    save_config(cfg)
+
+
+# ── WIP limits ────────────────────────────────────────────────────────────────
+
+def get_wip_limits() -> dict[str, int]:
+    """Return WIP limit dict: {status: max_task_count}."""
+    return load_config().get("wip_limits", {})
+
+
+def set_wip_limit(status: str, limit: int) -> None:
+    """Set the WIP limit for a column. limit=0 removes the limit."""
+    cfg = load_config()
+    if limit <= 0:
+        cfg.setdefault("wip_limits", {}).pop(status, None)
+    else:
+        cfg.setdefault("wip_limits", {})[status] = limit
+    save_config(cfg)
+
+
+def clear_wip_limit(status: str) -> None:
+    """Remove the WIP limit for a column."""
+    cfg = load_config()
+    cfg.setdefault("wip_limits", {}).pop(status, None)
+    save_config(cfg)
+
+
+# ── Sync backend ──────────────────────────────────────────────────────────────
+
+def get_backend_type() -> str:
+    """Return active backend: 'notion' | 'json' | 'local'."""
+    if is_local_only():
+        return "local"
+    return load_config().get("backend", "notion")
+
+
+def set_backend_type(backend: str) -> None:
+    """Persist the sync backend choice."""
+    cfg = load_config()
+    cfg["backend"] = backend
+    if backend == "local":
+        cfg["local_only"] = True
+    else:
+        cfg.pop("local_only", None)
+    save_config(cfg)
+
+
+def get_json_sync_path() -> str:
+    """Return the JSON sync file path (used by the JSON backend)."""
+    default = str(Path.home() / "tuido_sync.json")
+    return load_config().get("json_sync_path", default)
+
+
+def set_json_sync_path(path: str) -> None:
+    cfg = load_config()
+    cfg["json_sync_path"] = path
+    save_config(cfg)
 
 
 def clear_config() -> None:
