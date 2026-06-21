@@ -11,7 +11,6 @@ class TaskCard(Static, can_focus=True):
         self.tags = tags
         self.description = description
         self.sync_status = sync_status
-        self.sync_status = sync_status
         self.due_date = due_date
         self.priority = priority
         self.assignee = assignee

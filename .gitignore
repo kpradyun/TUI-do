@@ -1,4 +1,12 @@
 .env
 __pycache__/
 *.pyc
+*.pyo
 tuido.db
+venv/
+.venv/
+env/
+*.mp4
+*.mov
+.DS_Store
+Thumbs.db

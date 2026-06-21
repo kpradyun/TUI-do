@@ -108,11 +108,15 @@ class TuiDoApp(App):
         """Tears down the existing board widgets and remounts. Used after :config or :switch."""
         api.clear_cache()
         for widget_id in ("#search-bar", "#board-container", "#cmd-bar"):
-            try: self.query_one(widget_id).remove()
-            except: pass
+            try:
+                self.query_one(widget_id).remove()
+            except Exception:
+                pass
         for cls in (Header, Footer):
-            try: self.query(cls).first().remove()
-            except: pass
+            try:
+                self.query(cls).first().remove()
+            except Exception:
+                pass
         self.call_after_refresh(self.load_board_data)
 
     def refresh_ui_from_local_db(self):
@@ -212,17 +216,22 @@ class TuiDoApp(App):
                 w.remove_class("-visible")
                 if widget_id == "#search-bar":
                     w.value = ""
-                    for card in self.query(TaskCard): card.remove_class("hidden")
-            except: pass
-        try: self.columns["Not started"].focus()
-        except: pass
+                    for card in self.query(TaskCard):
+                        card.remove_class("hidden")
+            except Exception:
+                pass
+        try:
+            self.columns["Not started"].focus()
+        except Exception:
+            pass
 
     def action_open_search_bar(self) -> None:
         try:
             s = self.query_one("#search-bar")
             s.add_class("-visible")
             s.focus()
-        except: pass
+        except Exception:
+            pass
 
     # --- CRUD ACTIONS ---
     def action_create_task(self, title: str, tags: list, desc: str, due_date: str = None, priority: str = None, assignee: str = None) -> None:
@@ -267,9 +276,9 @@ class TuiDoApp(App):
             return
             
         action = self.undo_stack.pop()
-        type = action.get("type", "move")
-        
-        if type == "delete":
+        action_type = action.get("type", "move")
+
+        if action_type == "delete":
             is_offline = action["task_id"].startswith("local_")
             if is_offline:
                 db.queue_create(action["task_id"], action["title"], action["status"], action["tags"], 
@@ -282,6 +291,7 @@ class TuiDoApp(App):
             db.queue_update(action["task_id"], action["title"], action["from"], action["desc"],
                             action.get("due_date"), action.get("priority"), action.get("assignee"), action.get("tags"))
             self.notify(f"Undo: Moved back to {action['from']}")
+
 
         self.refresh_ui_from_local_db()
 
@@ -321,7 +331,8 @@ class TuiDoApp(App):
             c.value = ":"
             c.focus()
             c.cursor_position = 1
-        except: pass
+        except Exception:
+            pass
 
     def action_refresh(self) -> None:
         if self.is_online: self.background_full_sync()
